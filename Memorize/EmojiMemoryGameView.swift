@@ -22,25 +22,63 @@ struct EmojiMemoryGameView: View {
     // the return is implied,
     // return Text()
     var body: some View {
-        // Stacks views on top of one another
-        // hence Z stack
-        // content is a function
-        // its ommitted if its the last arg, so you can drop the () and use {}
+            VStack {
+                gameBody
+                shuffle
+            }
+            .padding()
+        }
     
+    // temparary state in view, to control how UI opperates
+    // only for use in view
+    @State private var dealt = Set<Int>()
+    
+    private func deal(_ card: EmojiMemoryGame.Card) {
+        dealt.insert(card.id)
+    }
+    
+    private func isUndealt(_ card: EmojiMemoryGame.Card) -> Bool {
+        !dealt.contains(card.id)
+    }
+    
+    
+    var gameBody: some View {
         AspectVGrid(items: game.cards, aspectRatio: 2/3, content: { card in
-            if card.isMatched && !card.isFaceUp {
-                Rectangle().opacity(0)
+            if isUndealt(card) || card.isMatched && !card.isFaceUp {
+                Color.clear // creates a rectangle with a clear color
             } else {
                 CardView(card:card)
                     .padding(4)
+                    .transition(AnyTransition.asymmetric(insertion: .scale, removal: .opacity))
                     .onTapGesture {
-                        game.choose(card)
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                          game.choose(card)
+                        }
                     }
             }
         })
-            .foregroundColor(.red)
-            .padding(.horizontal)
+        
+        // don't put a view on screen, until its container appears
+        .onAppear {
+            withAnimation {
+                for card in game.cards {
+                    deal(card)
+                }
+            }
+            // deal cards
         }
+            .foregroundColor(.red)
+    }
+    
+    
+    var shuffle: some View {
+        Button("Shuffle") {
+            withAnimation {
+                game.shuffle()
+            }
+        }
+    }
+    
     }
 
 // refactored view into view struct
