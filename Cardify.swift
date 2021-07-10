@@ -29,3 +29,9 @@ struct Cardify: ViewModifier {
         static let fontScale: CGFloat = 0.65
     }
 }
+
+extension View {
+    func cardify(isFaceUp: Bool) -> some View {
+        self.modifier(Cardify(isFaceUp: isFaceUp))
+    }
+}

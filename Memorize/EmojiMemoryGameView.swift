@@ -56,29 +56,11 @@ struct CardView: View {
         
         GeometryReader(content: { geometry in
             ZStack {
-                // let shape: RoundedRectangle = RoundedRectangle(cornerRadius: 20.0)
-                let shape = RoundedRectangle(cornerRadius: DrawingConstants.cornerRadius)
-                if card.isFaceUp {
-                    shape.fill().foregroundColor(.white)
-                    shape.strokeBorder(lineWidth: DrawingConstants.lineWidth)
-                    
-                    Pie(startAngle: Angle(degrees: 0-90), endAngle: Angle(degrees: 110-90)).padding(DrawingConstants.circlePadding).opacity(DrawingConstants.circleOpacity)
-
-                    Text(card.content).font(Font.system(size: min(geometry.size.width, geometry.size.height)*DrawingConstants.fontScale))
-                    
-                } else if card.isMatched {
-                    shape.opacity(0)
-                } else {
-                    shape.fill()
-                }
+                Pie(startAngle: Angle(degrees: 0-90), endAngle: Angle(degrees: 110-90)).padding(DrawingConstants.circlePadding).opacity(DrawingConstants.circleOpacity)
+                Text(card.content).font(Font.system(size: min(geometry.size.width, geometry.size.height)*DrawingConstants.fontScale))
             }
+            .cardify(isFaceUp: card.isFaceUp)
         })
-//        .onTapGesture {
-//            // self is immutable
-//            // views are always being created, and can't be changed
-//            // Does not compile without @State (pointer)
-//            isFaceUp = !isFaceUp
-//        }
     }
     private struct DrawingConstants {
         static let cornerRadius: CGFloat = 10
