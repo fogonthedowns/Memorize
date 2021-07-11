@@ -12,6 +12,8 @@ struct EmojiMemoryGameView: View {
     // game is the ViewModel
     @ObservedObject var game: EmojiMemoryGame
     
+    @Namespace private var dealingNamespace
+    
     //var emojis:Array<String> = ["👻","🏀","🔥","👋"]
    // @State var emojiCount:Int = 20
     
@@ -22,12 +24,20 @@ struct EmojiMemoryGameView: View {
     // the return is implied,
     // return Text()
     var body: some View {
+        ZStack(alignment: .bottom) {
             VStack {
                 gameBody
-                shuffle
+                HStack {
+                  shuffle
+                  Spacer()
+                  restart
+                }
+                .padding(.horizontal)
             }
-            .padding()
+            deckBody
         }
+        .padding()
+    }
     
     // temparary state in view, to control how UI opperates
     // only for use in view
@@ -41,6 +51,19 @@ struct EmojiMemoryGameView: View {
         !dealt.contains(card.id)
     }
     
+    private func dealAnimcation(for card: EmojiMemoryGame.Card) -> Animation {
+        var delay = 0.0
+        if let index = game.cards.firstIndex(where: {$0.id == card.id }) {
+            delay = Double(index) * (CardConstants.totalDealDuration / Double(game.cards.count))
+        }
+        return Animation.easeInOut(duration: CardConstants.dealDuration).delay(delay)
+    }
+    
+    private func zIndex(of card: EmojiMemoryGame.Card) -> Double {
+        // default to zero
+        // optional
+        -Double(game.cards.firstIndex(where: {$0.id == card.id}) ?? 0)
+    }
     
     var gameBody: some View {
         AspectVGrid(items: game.cards, aspectRatio: 2/3, content: { card in
@@ -48,8 +71,11 @@ struct EmojiMemoryGameView: View {
                 Color.clear // creates a rectangle with a clear color
             } else {
                 CardView(card:card)
+                    .matchedGeometryEffect(id: card.id, in: dealingNamespace)
                     .padding(4)
-                    .transition(AnyTransition.asymmetric(insertion: .scale, removal: .opacity))
+                    // identity means don't do any animation
+                    .transition(AnyTransition.asymmetric(insertion: .identity, removal: .scale))
+                    .zIndex(zIndex(of: card))
                     .onTapGesture {
                         withAnimation(.easeInOut(duration: 0.5)) {
                           game.choose(card)
@@ -57,17 +83,30 @@ struct EmojiMemoryGameView: View {
                     }
             }
         })
-        
+            .foregroundColor(.red)
+    }
+    
+    var deckBody: some View {
+        ZStack {
+            ForEach(game.cards.filter(isUndealt)) {
+                card in
+                CardView(card: card)
+                    .matchedGeometryEffect(id: card.id, in: dealingNamespace)
+                    .transition(AnyTransition.asymmetric(insertion: .opacity, removal: .identity))
+                    .zIndex(zIndex(of: card))
+            }
+        }
+        .frame(width: CardConstants.undealtWidth, height: CardConstants.undealtHeight)
+        .foregroundColor(CardConstants.color)
         // don't put a view on screen, until its container appears
-        .onAppear {
-            withAnimation {
+        .onTapGesture {
                 for card in game.cards {
+                    withAnimation(dealAnimcation(for: card)) {
                     deal(card)
                 }
             }
             // deal cards
         }
-            .foregroundColor(.red)
     }
     
     
@@ -77,6 +116,25 @@ struct EmojiMemoryGameView: View {
                 game.shuffle()
             }
         }
+    }
+    
+    var restart: some View {
+        Button("Restart") {
+            withAnimation {
+                dealt = []
+                game.restart()
+            }
+        }
+    }
+    
+    private struct CardConstants {
+        static let totalDealDuration: Double = 2.0
+        static let dealDuration: Double = 1.0
+        static let aspectRatio: CGFloat = 2/3
+        static let fontSize: CGFloat = 32
+        static let undealtHeight: CGFloat = 90
+        static let undealtWidth = undealtHeight * aspectRatio
+        static let color = Color.red
     }
     
     }
@@ -94,10 +152,13 @@ struct CardView: View {
         
         GeometryReader(content: { geometry in
             ZStack {
-                Pie(startAngle: Angle(degrees: 0-90), endAngle: Angle(degrees: 110-90)).padding(DrawingConstants.circlePadding).opacity(DrawingConstants.circleOpacity)
+                Pie(startAngle: Angle(degrees: 0-90), endAngle: Angle(degrees: (1-card.bonusRemaining)*360-90))
+                    .padding(DrawingConstants.circlePadding)
+                    .opacity(DrawingConstants.circleOpacity)
                 Text(card.content)
                     .rotationEffect(Angle.degrees(card.isMatched ? 360 : 0))
                     .animation(Animation.linear(duration: 1).repeatForever(autoreverses: false)) // only effects modifiers above, not below
+                    .padding(5)
                     .font(Font.system(size:DrawingConstants.fontSize))
                     .scaleEffect(scale(thatFits:geometry.size))
             }
@@ -106,7 +167,7 @@ struct CardView: View {
     }
     
     private func scale(thatFits size:CGSize) -> CGFloat {
-        min(size.width, size.height) / (DrawingConstants.fontSize/DrawingConstants.fontScale)
+        min(size.width, size.height) / (DrawingConstants.fontSize / DrawingConstants.fontScale)
     }
     
     private struct DrawingConstants {
